@@ -1,2 +1,0 @@
-# krakeFactory
-database for Krake.

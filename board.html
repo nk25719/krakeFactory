@@ -2,10 +2,8 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <!-- <title>Krake Factory – Board Record</title> -->
+  <title>Krake Factory – Board Record</title>
   <link rel="stylesheet" href="style.css">
-
- 
   <style>
     .board-container {
       max-width: 960px;
@@ -184,19 +182,33 @@
       border: 1px solid #f3c580;
     }
 
+    details {
+      margin-top: 0.5rem;
+      font-size: 0.78rem;
+    }
+
+    details summary {
+      cursor: pointer;
+      color: #2f3c6e;
+    }
+
+    details summary:hover {
+      text-decoration: underline;
+    }
+
     @media (max-width: 700px) {
       .board-container {
         padding: 1.25rem 1.1rem;
         margin: 0 0.5rem 1.5rem;
       }
     }
-  </style>  
+  </style>
 </head>
 <body>
   <h1>Krake Factory – Board Record</h1>
 
   <nav class="top-nav">
-    <a href="factory-form.html" class="nav-btn">New Test</a>
+    <a href="index.html" class="nav-btn">New Test</a>
     <a href="records.html" class="nav-btn">Records</a>
     <a href="all-tables.html" class="nav-btn">All Tables</a>
     <a href="board.html" class="nav-btn active" aria-current="page">Board Record</a>
@@ -221,9 +233,8 @@
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script>
     // ⚠️ Same values as your other pages
-    const SUPABASE_URL = 'https://bkonmvhzzlbrbtnvlfcr.supabase.co'
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJrb25tdmh6emxicmJ0bnZsZmNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMyMjUxNjIsImV4cCI6MjA3ODgwMTE2Mn0.yrg1t-aHWuwVEVcUVJ4-sbz1BNSspc7c5tBSQ3APTAg'
-
+    const SUPABASE_URL = 'https://YOUR-PROJECT-REF.supabase.co'
+    const SUPABASE_ANON_KEY = 'YOUR_ANON_PUBLIC_KEY'
 
     const { createClient } = supabase
     const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
@@ -248,6 +259,17 @@
       return d.toLocaleString()
     }
 
+    function keyValueTable(obj) {
+      if (!obj) return '<p class="test-empty">No data.</p>'
+      const rows = Object.entries(obj).map(([k, v]) => {
+        let val = v
+        if (val === null || val === undefined) val = ''
+        else if (typeof val === 'object') val = JSON.stringify(val)
+        return `<tr><th>${k}</th><td>${val}</td></tr>`
+      }).join('')
+      return `<table class="mini-table"><tbody>${rows}</tbody></table>`
+    }
+
     function renderBoardCard(board) {
       const loc = [board.country || '', board.lab || ''].filter(Boolean).join(' / ')
       const dateAsm = board.date_assembled ? new Date(board.date_assembled).toLocaleDateString() : '—'
@@ -265,6 +287,11 @@
             <div><strong>Status:</strong> ${board.status || '—'}</div>
           </div>
           ${board.notes ? `<div style="margin-top:0.4rem;font-size:0.8rem;"><strong>Notes:</strong> ${board.notes}</div>` : ''}
+
+          <details>
+            <summary>All board fields (raw)</summary>
+            ${keyValueTable(board)}
+          </details>
         </div>
       `
     }
@@ -286,8 +313,11 @@
         else badgeClass = 'badge'
 
         const dt = formatDateTime(run.test_datetime)
-        const unp = (run.unpowered_results && run.unpowered_results[0]) || null
-        const pow = (run.powered_results && run.powered_results[0]) || null
+        const unpList = run.unpowered_results || []
+        const powList = run.powered_results || []
+
+        const unp = unpList[0] || null
+        const pow = powList[0] || null
 
         const testElem = document.createElement('div')
         testElem.className = 'test-item'
@@ -358,6 +388,23 @@
           </div>
         ` : ''
 
+        // Build HTML for all raw rows (test_run + all unpowered + all powered)
+        const rawUnpHtml = (unpList.length === 0)
+          ? '<p class="test-empty">No unpowered rows.</p>'
+          : unpList.map((row, i) => `
+              <h4 style="margin:0.3rem 0 0.15rem;font-size:0.78rem;">Unpowered row #${i+1}</h4>
+              ${keyValueTable(row)}
+            `).join('')
+
+        const rawPowHtml = (powList.length === 0)
+          ? '<p class="test-empty">No powered rows.</p>'
+          : powList.map((row, i) => `
+              <h4 style="margin:0.3rem 0 0.15rem;font-size:0.78rem;">Powered row #${i+1}</h4>
+              ${keyValueTable(row)}
+            `).join('')
+
+        const rawRunHtml = keyValueTable(run)
+
         body.innerHTML = `
           <div class="test-grids">
             <div class="test-card">
@@ -370,6 +417,21 @@
             </div>
           </div>
           ${commentsHtml}
+
+          <details>
+            <summary>All fields for this test run (test_runs)</summary>
+            ${rawRunHtml}
+          </details>
+
+          <details>
+            <summary>All fields from unpowered_results for this run (${unpList.length} row(s))</summary>
+            ${rawUnpHtml}
+          </details>
+
+          <details>
+            <summary>All fields from powered_results for this run (${powList.length} row(s))</summary>
+            ${rawPowHtml}
+          </details>
         `
 
         header.addEventListener('click', () => {
@@ -396,6 +458,7 @@
       testsContainerEl.innerHTML = ''
 
       try {
+        // Boards: grab ALL columns
         const { data: board, error: boardError } = await db
           .from('boards')
           .select('*')
@@ -411,43 +474,13 @@
         renderBoardCard(board)
         setStatus('Board loaded. Loading test runs…')
 
+        // Test runs + ALL columns from test_runs, and ALL from each related table
         const { data: runs, error: runsError } = await db
           .from('test_runs')
           .select(`
-            testrun_id,
-            test_datetime,
-            test_location,
-            tester,
-            firmware_version,
-            overall_result,
-            comments,
-            unpowered_results (
-              meter_make,
-              meter_model,
-              meter_sn,
-              res_tp102_tp101_vin,
-              res_tp103_tp101_5v,
-              res_tp201_tp101_vbus,
-              res_tp202_tp101_v3,
-              res_j103pin2_tp101_ctrl_vcc,
-              pass_fail,
-              notes
-            ),
-            powered_results (
-              supply_current_ma,
-              vin_tp102_v,
-              v5_tp103_v,
-              v5_esp32_u103_v,
-              v3p3_tab_u103_v,
-              v3_tp202_u501_v,
-              v3v3_ctrl_d103k_v,
-              vcclcd_tp401_v,
-              v5_dfp_c505_v,
-              v_charge_pump_plus_v,
-              v_charge_pump_minus_v,
-              pass_fail,
-              notes
-            )
+            *,
+            unpowered_results (*),
+            powered_results (*)
           `)
           .eq('board_id', board.board_id)
           .order('test_datetime', { ascending: false })

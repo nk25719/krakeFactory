@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Krake Factory – Board Record</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .board-container {
+      max-width: 960px;
+      margin: 0 auto 2rem;
+      padding: 1.5rem 2rem;
+      background: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+    }
+
+    .search-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: flex-end;
+      margin-bottom: 1rem;
+    }
+
+    .search-row label {
+      margin-bottom: 0;
+    }
+
+    .search-row input[type="text"] {
+      max-width: 220px;
+    }
+
+    .search-row button {
+      margin-left: auto;
+    }
+
+    .board-card {
+      border: 1px solid #d5d7e2;
+      border-radius: 8px;
+      background: #fafbff;
+      padding: 0.9rem 1rem;
+      margin-bottom: 1rem;
+      font-size: 0.85rem;
+    }
+
+    .board-card h2 {
+      margin: 0 0 0.4rem;
+      font-size: 1rem;
+    }
+
+    .board-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.3rem 1rem;
+    }
+
+    .board-meta-grid div {
+      font-size: 0.82rem;
+      color: #394263;
+    }
+
+    .tests-list {
+      margin-top: 1rem;
+    }
+
+    .test-item {
+      border: 1px solid #d5d7e2;
+      border-radius: 8px;
+      margin-bottom: 0.8rem;
+    }
+
+    .test-header {
+      padding: 0.5rem 0.7rem;
+      background: #f4f5fb;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .test-header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+
+    .test-header-main {
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .test-header-sub {
+      font-size: 0.78rem;
+      color: #555b7a;
+    }
+
+    .test-toggle {
+      font-size: 0.78rem;
+      color: #2f3c6e;
+    }
+
+    .test-body {
+      padding: 0.6rem 0.7rem 0.8rem;
+      display: none;
+      font-size: 0.8rem;
+    }
+
+    .test-body.open {
+      display: block;
+    }
+
+    .test-grids {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 0.7rem;
+    }
+
+    .test-card {
+      border-radius: 6px;
+      background: #ffffff;
+      border: 1px dashed #d5d7e2;
+      padding: 0.6rem 0.7rem;
+    }
+
+    .test-card h3 {
+      margin: 0 0 0.4rem;
+      font-size: 0.82rem;
+      color: #394263;
+    }
+
+    .mini-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .mini-table th,
+    .mini-table td {
+      padding: 0.14rem 0.2rem;
+      border: none;
+      font-size: 0.78rem;
+    }
+
+    .mini-table th {
+      text-align: left;
+      color: #555b7a;
+      width: 60%;
+    }
+
+    .mini-table td {
+      text-align: right;
+      font-family: monospace;
+    }
+
+    .test-empty {
+      font-size: 0.78rem;
+      color: #7f1d1d;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.1rem 0.45rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-pass {
+      background: #e6f6ec;
+      color: #14532d;
+      border: 1px solid #83c39c;
+    }
+
+    .badge-fail {
+      background: #fde8e8;
+      color: #7f1d1d;
+      border: 1px solid #f19999;
+    }
+
+    .badge-rework {
+      background: #fff7e6;
+      color: #92400e;
+      border: 1px solid #f3c580;
+    }
+
+    @media (max-width: 700px) {
+      .board-container {
+        padding: 1.25rem 1.1rem;
+        margin: 0 0.5rem 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Krake Factory – Board Record</h1>
+
+  <nav class="top-nav">
+    <a href="index.html" class="nav-btn">New Test</a>
+    <a href="records.html" class="nav-btn">Records</a>
+    <a href="all-tables.html" class="nav-btn">All Tables</a>
+    <a href="board.html" class="nav-btn">Board Record</a>
+  </nav>
+
+  <div class="board-container">
+    <div class="search-row">
+      <label>
+        Serial number:
+        <input type="text" id="serial-input" placeholder="e.g. US0001">
+      </label>
+      <button type="button" id="search-btn">Load Board</button>
+    </div>
+
+    <p id="status"></p>
+
+    <div id="board-info"></div>
+    <div id="tests-container" class="tests-list"></div>
+  </div>
+
+  <!-- Supabase JS client -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script>
+    // ⚠️ Same values as your other pages
+    const SUPABASE_URL = 'https://YOUR-PROJECT-REF.supabase.co'
+    const SUPABASE_ANON_KEY = 'YOUR_ANON_PUBLIC_KEY'
+
+    const { createClient } = supabase
+    const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+    const serialInput = document.getElementById('serial-input')
+    const searchBtn = document.getElementById('search-btn')
+    const statusEl = document.getElementById('status')
+    const boardInfoEl = document.getElementById('board-info')
+    const testsContainerEl = document.getElementById('tests-container')
+
+    function setStatus(message, isError = false) {
+      statusEl.textContent = message || ''
+      statusEl.className = ''
+      if (!message) return
+      statusEl.classList.add(isError ? 'error' : 'success')
+    }
+
+    function formatDateTime(isoString) {
+      if (!isoString) return ''
+      const d = new Date(isoString)
+      if (isNaN(d)) return isoString
+      return d.toLocaleString()
+    }
+
+    function renderBoardCard(board) {
+      const loc = [board.country || '', board.lab || ''].filter(Boolean).join(' / ')
+      const dateAsm = board.date_assembled ? new Date(board.date_assembled).toLocaleDateString() : '—'
+
+      boardInfoEl.innerHTML = `
+        <div class="board-card">
+          <h2>Board ${board.serial_number || ''}</h2>
+          <div class="board-meta-grid">
+            <div><strong>Hardware Rev:</strong> ${board.hardware_rev || '—'}</div>
+            <div><strong>PCB Rev:</strong> ${board.pcb_rev || '—'}</div>
+            <div><strong>Batch:</strong> ${board.batch || '—'}</div>
+            <div><strong>Location:</strong> ${loc || '—'}</div>
+            <div><strong>Date Assembled:</strong> ${dateAsm}</div>
+            <div><strong>Assembled By:</strong> ${board.assembled_by || '—'}</div>
+            <div><strong>Status:</strong> ${board.status || '—'}</div>
+          </div>
+          ${board.notes ? `<div style="margin-top:0.4rem;font-size:0.8rem;"><strong>Notes:</strong> ${board.notes}</div>` : ''}
+        </div>
+      `
+    }
+
+    function renderTests(runs) {
+      testsContainerEl.innerHTML = ''
+
+      if (!runs || runs.length === 0) {
+        testsContainerEl.innerHTML = '<p style="font-size:0.85rem;">No test runs recorded for this board yet.</p>'
+        return
+      }
+
+      runs.forEach((run, index) => {
+        const res = (run.overall_result || '').toUpperCase()
+        let badgeClass = ''
+        if (res === 'PASS') badgeClass = 'badge badge-pass'
+        else if (res === 'FAIL') badgeClass = 'badge badge-fail'
+        else if (res === 'REWORK') badgeClass = 'badge badge-rework'
+        else badgeClass = 'badge'
+
+        const dt = formatDateTime(run.test_datetime)
+        const unp = (run.unpowered_results && run.unpowered_results[0]) || null
+        const pow = (run.powered_results && run.powered_results[0]) || null
+
+        const testElem = document.createElement('div')
+        testElem.className = 'test-item'
+
+        const header = document.createElement('div')
+        header.className = 'test-header'
+
+        const left = document.createElement('div')
+        left.className = 'test-header-left'
+        left.innerHTML = `
+          <div class="test-header-main">
+            Run #${index + 1} · <span class="${badgeClass}">${res || '—'}</span>
+          </div>
+          <div class="test-header-sub">
+            ${dt || 'Unknown time'} · Location: ${run.test_location || '—'} · Tester: ${run.tester || '—'} · FW: ${run.firmware_version || '—'}
+          </div>
+        `
+
+        const right = document.createElement('div')
+        right.className = 'test-toggle'
+        right.textContent = 'Show details'
+
+        header.appendChild(left)
+        header.appendChild(right)
+
+        const body = document.createElement('div')
+        body.className = 'test-body'
+
+        const unpHtml = unp ? `
+          <table class="mini-table">
+            <tbody>
+              <tr><th>Meter</th><td>${(unp.meter_make || '')} ${(unp.meter_model || '')}</td></tr>
+              <tr><th>Meter S/N</th><td>${unp.meter_sn || ''}</td></tr>
+              <tr><th>TP102–TP101 (Vin)</th><td>${unp.res_tp102_tp101_vin || ''}</td></tr>
+              <tr><th>TP103–TP101 (+5V)</th><td>${unp.res_tp103_tp101_5v || ''}</td></tr>
+              <tr><th>TP201–TP101 (VBus)</th><td>${unp.res_tp201_tp101_vbus || ''}</td></tr>
+              <tr><th>TP202–TP101 (V3)</th><td>${unp.res_tp202_tp101_v3 || ''}</td></tr>
+              <tr><th>J103 Pin2–TP101 (Ctrl Vcc)</th><td>${unp.res_j103pin2_tp101_ctrl_vcc || ''}</td></tr>
+              <tr><th>Unpowered Result</th><td>${unp.pass_fail || ''}</td></tr>
+              <tr><th>Unpowered Notes</th><td>${unp.notes || ''}</td></tr>
+            </tbody>
+          </table>
+        ` : `<p class="test-empty">No unpowered results recorded.</p>`
+
+        const powHtml = pow ? `
+          <table class="mini-table">
+            <tbody>
+              <tr><th>I<sub>in</sub> J101 (mA)</th><td>${pow.supply_current_ma ?? ''}</td></tr>
+              <tr><th>TP102 Vin (V)</th><td>${pow.vin_tp102_v ?? ''}</td></tr>
+              <tr><th>TP103 +5V (V)</th><td>${pow.v5_tp103_v ?? ''}</td></tr>
+              <tr><th>+5 esp32 → U103 (V)</th><td>${pow.v5_esp32_u103_v ?? ''}</td></tr>
+              <tr><th>+3.3V Tab U103 (V)</th><td>${pow.v3p3_tab_u103_v ?? ''}</td></tr>
+              <tr><th>TP202 V3 U501 (V)</th><td>${pow.v3_tp202_u501_v ?? ''}</td></tr>
+              <tr><th>D103 Cathode 3v3Ctrl (V)</th><td>${pow.v3v3_ctrl_d103k_v ?? ''}</td></tr>
+              <tr><th>TP401 VccLCD (V)</th><td>${pow.vcclcd_tp401_v ?? ''}</td></tr>
+              <tr><th>C505+ 5VDFP (V)</th><td>${pow.v5_dfp_c505_v ?? ''}</td></tr>
+              <tr><th>ChargePump + (V)</th><td>${pow.v_charge_pump_plus_v ?? ''}</td></tr>
+              <tr><th>ChargePump - (V)</th><td>${pow.v_charge_pump_minus_v ?? ''}</td></tr>
+              <tr><th>Powered Result</th><td>${pow.pass_fail || ''}</td></tr>
+              <tr><th>Powered Notes</th><td>${pow.notes || ''}</td></tr>
+            </tbody>
+          </table>
+        ` : `<p class="test-empty">No powered results recorded.</p>`
+
+        const commentsHtml = run.comments ? `
+          <div style="margin-top:0.5rem;font-size:0.78rem;">
+            <strong>Run Comments:</strong> ${run.comments}
+          </div>
+        ` : ''
+
+        body.innerHTML = `
+          <div class="test-grids">
+            <div class="test-card">
+              <h3>Unpowered Test (Resistance)</h3>
+              ${unpHtml}
+            </div>
+            <div class="test-card">
+              <h3>Powered Tests (Current & Voltages)</h3>
+              ${powHtml}
+            </div>
+          </div>
+          ${commentsHtml}
+        `
+
+        header.addEventListener('click', () => {
+          const isOpen = body.classList.contains('open')
+          body.classList.toggle('open', !isOpen)
+          right.textContent = isOpen ? 'Show details' : 'Hide details'
+        })
+
+        testElem.appendChild(header)
+        testElem.appendChild(body)
+        testsContainerEl.appendChild(testElem)
+      })
+    }
+
+    async function loadBoardAndTests() {
+      const serial = serialInput.value.trim()
+      if (!serial) {
+        setStatus('Please enter a serial number.', true)
+        return
+      }
+
+      setStatus('Loading board…')
+      boardInfoEl.innerHTML = ''
+      testsContainerEl.innerHTML = ''
+
+      try {
+        const { data: board, error: boardError } = await db
+          .from('boards')
+          .select('*')
+          .eq('serial_number', serial)
+          .single()
+
+        if (boardError) {
+          console.error(boardError)
+          setStatus('Board not found for serial ' + serial, true)
+          return
+        }
+
+        renderBoardCard(board)
+        setStatus('Board loaded. Loading test runs…')
+
+        const { data: runs, error: runsError } = await db
+          .from('test_runs')
+          .select(`
+            testrun_id,
+            test_datetime,
+            test_location,
+            tester,
+            firmware_version,
+            overall_result,
+            comments,
+            unpowered_results (
+              meter_make,
+              meter_model,
+              meter_sn,
+              res_tp102_tp101_vin,
+              res_tp103_tp101_5v,
+              res_tp201_tp101_vbus,
+              res_tp202_tp101_v3,
+              res_j103pin2_tp101_ctrl_vcc,
+              pass_fail,
+              notes
+            ),
+            powered_results (
+              supply_current_ma,
+              vin_tp102_v,
+              v5_tp103_v,
+              v5_esp32_u103_v,
+              v3p3_tab_u103_v,
+              v3_tp202_u501_v,
+              v3v3_ctrl_d103k_v,
+              vcclcd_tp401_v,
+              v5_dfp_c505_v,
+              v_charge_pump_plus_v,
+              v_charge_pump_minus_v,
+              pass_fail,
+              notes
+            )
+          `)
+          .eq('board_id', board.board_id)
+          .order('test_datetime', { ascending: false })
+
+        if (runsError) {
+          console.error(runsError)
+          setStatus('Error loading test runs: ' + runsError.message, true)
+          testsContainerEl.innerHTML = ''
+          return
+        }
+
+        setStatus(`Loaded board and ${runs.length} test run(s).`)
+        renderTests(runs || [])
+      } catch (err) {
+        console.error(err)
+        setStatus('Unexpected error: ' + err.message, true)
+      }
+    }
+
+    searchBtn.addEventListener('click', loadBoardAndTests)
+    serialInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        loadBoardAndTests()
+      }
+    })
+  </script>
+</body>
+</html>

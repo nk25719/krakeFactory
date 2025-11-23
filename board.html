@@ -327,14 +327,18 @@
 
         const left = document.createElement('div')
         left.className = 'test-header-left'
+        
+        const runNumber = runs.length - index   // oldest = 1, newest = N
+        
         left.innerHTML = `
           <div class="test-header-main">
-            Run #${index + 1} · <span class="${badgeClass}">${res || '—'}</span>
+            Run #${runNumber} · <span class="${badgeClass}">${res || '—'}</span>
           </div>
           <div class="test-header-sub">
             ${dt || 'Unknown time'} · Location: ${run.test_location || '—'} · Tester: ${run.tester || '—'} · FW: ${run.firmware_version || '—'}
           </div>
         `
+
 
         const right = document.createElement('div')
         right.className = 'test-toggle'

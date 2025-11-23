@@ -496,7 +496,7 @@
           return
         }
 
-        setStatus(`Loaded board and ${runs.length} test run(s).`)
+        setStatus(`Board has ${runs.length} test run(s).`)
         renderTests(runs || [])
       } catch (err) {
         console.error(err)

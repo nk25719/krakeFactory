@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-
+  <title>Krake Factory – Board Record</title>
   <link rel="stylesheet" href="style.css">
   <style>
     .board-container {
@@ -57,6 +57,33 @@
     .board-meta-grid div {
       font-size: 0.82rem;
       color: #394263;
+    }
+
+    .board-gdt {
+      margin-top: 0.5rem;
+      font-size: 0.8rem;
+      color: #394263;
+    }
+
+    .board-gdt a {
+      color: #2f6feb;
+      text-decoration: none;
+    }
+
+    .board-gdt a:hover {
+      text-decoration: underline;
+    }
+
+    .board-gdt-image {
+      margin-top: 0.4rem;
+    }
+
+    .board-gdt-image img {
+      max-width: 100%;
+      max-height: 260px;
+      border-radius: 6px;
+      border: 1px solid #d5d7e2;
+      display: block;
     }
 
     .tests-list {
@@ -205,15 +232,15 @@
   </style>
 </head>
 <body>
-  <p style="text-align:center; margin-top:-0.3rem; margin-bottom:1rem;">
-  <!-- <title>Krake Factory – Board Record</title> -->
-    <nav class="top-nav">
+  <h1>Krake Factory – Board Record</h1>
+
+  <nav class="top-nav">
     <a href="factory-form.html" class="nav-btn">Krake Testing Register</a>
     <a href="records.html" class="nav-btn">Inventory</a>
     <a href="board.html" class="nav-btn active" aria-current="page">Board Record</a>
     <!-- <a href="all-tables.html" class="nav-btn">Data Base</a> -->
   </nav>
-  
+
   <div class="board-container">
     <div class="search-row">
       <label>
@@ -232,7 +259,6 @@
   <!-- Supabase JS client -->
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script>
-    // ⚠️ Same values as your other pages
     const SUPABASE_URL = 'https://bkonmvhzzlbrbtnvlfcr.supabase.co'
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJrb25tdmh6emxicmJ0bnZsZmNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMyMjUxNjIsImV4cCI6MjA3ODgwMTE2Mn0.yrg1t-aHWuwVEVcUVJ4-sbz1BNSspc7c5tBSQ3APTAg'
 
@@ -273,6 +299,7 @@
     function renderBoardCard(board) {
       const loc = [board.country || '', board.lab || ''].filter(Boolean).join(' / ')
       const dateAsm = board.date_assembled ? new Date(board.date_assembled).toLocaleDateString() : '—'
+      const hasGdt = board.gdt_key || board.gdt_url
 
       boardInfoEl.innerHTML = `
         <div class="board-card">
@@ -286,7 +313,21 @@
             <div><strong>Assembled By:</strong> ${board.assembled_by || '—'}</div>
             <div><strong>Status:</strong> ${board.status || '—'}</div>
           </div>
+
           ${board.notes ? `<div style="margin-top:0.4rem;font-size:0.8rem;"><strong>Notes:</strong> ${board.notes}</div>` : ''}
+
+          ${hasGdt ? `
+            <div class="board-gdt">
+              <strong>GDT:</strong>
+              ${board.gdt_key ? `Key: ${board.gdt_key} · ` : ''}
+              ${board.gdt_url ? `<a href="${board.gdt_url}" target="_blank" rel="noopener noreferrer">Open GDT link</a>` : ''}
+            </div>
+            ${board.gdt_url ? `
+              <div class="board-gdt-image">
+                <img src="${board.gdt_url}" alt="GDT image for ${board.serial_number || ''}">
+              </div>
+            ` : ''}
+          ` : ''}
 
           <details>
             <summary>All board fields (raw)</summary>
@@ -327,9 +368,9 @@
 
         const left = document.createElement('div')
         left.className = 'test-header-left'
-        
+
         const runNumber = runs.length - index   // oldest = 1, newest = N
-        
+
         left.innerHTML = `
           <div class="test-header-main">
             Run #${runNumber} · <span class="${badgeClass}">${res || '—'}</span>
@@ -338,7 +379,6 @@
             ${dt || 'Unknown time'} · Location: ${run.test_location || '—'} · Tester: ${run.tester || '—'} · FW: ${run.firmware_version || '—'}
           </div>
         `
-
 
         const right = document.createElement('div')
         right.className = 'test-toggle'
@@ -392,7 +432,6 @@
           </div>
         ` : ''
 
-        // Build HTML for all raw rows (test_run + all unpowered + all powered)
         const rawUnpHtml = (unpList.length === 0)
           ? '<p class="test-empty">No unpowered rows.</p>'
           : unpList.map((row, i) => `
@@ -462,7 +501,6 @@
       testsContainerEl.innerHTML = ''
 
       try {
-        // Boards: grab ALL columns
         const { data: board, error: boardError } = await db
           .from('boards')
           .select('*')
@@ -478,7 +516,6 @@
         renderBoardCard(board)
         setStatus('Board loaded. Loading test runs…')
 
-        // Test runs + ALL columns from test_runs, and ALL from each related table
         const { data: runs, error: runsError } = await db
           .from('test_runs')
           .select(`

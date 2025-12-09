@@ -59,7 +59,17 @@
       <label>GDT Image:
         <input type="file" id="gdt_file" accept="image/*">
       </label><br>
+
       <small>(Optional) Upload drawing/photo for this board. Stored in Supabase Storage.</small>
+      
+      <label>GDT Storage Key:
+        <input type="text" id="gdt_key_display" readonly>
+      </label><br>
+            
+            <label>GDT Public URL:
+        <input type="text" id="gdt_url_display" readonly>
+      </label><br>
+
     </fieldset>
 
     <br>
@@ -251,7 +261,13 @@
       const lab                = document.getElementById('lab').value.trim()
       const date_assembled     = document.getElementById('date_assembled').value || null
       const assembled_by       = document.getElementById('assembled_by').value.trim()
-
+      // Show in UI (if the fields exist)
+      const gdtKeyEl = document.getElementById('gdt_key_display')
+      const gdtUrlEl = document.getElementById('gdt_url_display')
+      
+      if (gdtKeyEl) gdtKeyEl.value = gdt_key || ''
+      if (gdtUrlEl) gdtUrlEl.value = gdt_url || ''
+      
       // --- GDT FILE UPLOAD (optional) ---
       const gdtFileInput = document.getElementById('gdt_file')
       const file = gdtFileInput.files[0]
@@ -425,6 +441,11 @@
 
         statusEl.textContent = '✅ All data saved!'
         form.reset()
+         
+        const gdtKeyEl = document.getElementById('gdt_key_display')
+        const gdtUrlEl = document.getElementById('gdt_url_display')
+        if (gdtKeyEl) gdtKeyEl.value = ''
+        if (gdtUrlEl) gdtUrlEl.value = ''
 
       } catch (err) {
         console.error(err)

@@ -55,12 +55,12 @@
       <label>Assembled By:
         <input type="text" id="assembled_by">
       </label><br>
-      
+
       <label>GDT Storage Key:
         <input type="text" id="gdt_key_display" readonly>
       </label><br>
-            
-            <label>GDT Public URL:
+
+      <label>GDT Public URL:
         <input type="text" id="gdt_url_display" readonly>
       </label><br>
 
@@ -69,7 +69,6 @@
       </label>
       <small>(Optional) Upload drawing/photo for this board. Stored in Supabase Storage.</small>
       <br>
-      
     </fieldset>
 
     <br>
@@ -120,7 +119,7 @@
       <p>Test with multimeter before applying power.</p>
 
       <label>Meter Make:
-        <input type="text" id="meter_make" placeholder="ASTRO /\I">
+        <input type="text" id="meter_make" placeholder="ASTRO AI">
       </label><br>
 
       <label>Meter Model:
@@ -244,8 +243,10 @@
     const statusEl = document.getElementById('status')
 
     function numOrNull(id) {
-      const v = document.getElementById(id).value
-      return v === '' ? null : Number(v)
+      const v = document.getElementById(id).value.trim()
+      if (v === '') return null
+      const n = Number(v)
+      return Number.isNaN(n) ? null : n
     }
 
     form.addEventListener('submit', async (e) => {
@@ -253,21 +254,15 @@
       statusEl.textContent = 'Saving...'
 
       // --- BOARD FIELDS ---
-      const serial_number      = document.getElementById('serial_number').value.trim()
-      const hardware_rev       = document.getElementById('hardware_rev').value.trim()
-      const pcb_rev            = document.getElementById('pcb_rev').value.trim()
-      const batch              = document.getElementById('batch').value.trim()
-      const country            = document.getElementById('country').value
-      const lab                = document.getElementById('lab').value.trim()
-      const date_assembled     = document.getElementById('date_assembled').value || null
-      const assembled_by       = document.getElementById('assembled_by').value.trim()
-      // Show in UI (if the fields exist)
-      const gdtKeyEl = document.getElementById('gdt_key_display')
-      const gdtUrlEl = document.getElementById('gdt_url_display')
-      
-      if (gdtKeyEl) gdtKeyEl.value = gdt_key || ''
-      if (gdtUrlEl) gdtUrlEl.value = gdt_url || ''
-      
+      const serial_number  = document.getElementById('serial_number').value.trim()
+      const hardware_rev   = document.getElementById('hardware_rev').value.trim()
+      const pcb_rev        = document.getElementById('pcb_rev').value.trim()
+      const batch          = document.getElementById('batch').value.trim()
+      const country        = document.getElementById('country').value
+      const lab            = document.getElementById('lab').value.trim()
+      const date_assembled = document.getElementById('date_assembled').value || null
+      const assembled_by   = document.getElementById('assembled_by').value.trim()
+
       // --- GDT FILE UPLOAD (optional) ---
       const gdtFileInput = document.getElementById('gdt_file')
       const file = gdtFileInput.files[0]
@@ -275,13 +270,16 @@
       let gdt_key = null
       let gdt_url = null
 
+      const gdtKeyEl = document.getElementById('gdt_key_display')
+      const gdtUrlEl = document.getElementById('gdt_url_display')
+
       if (file) {
         try {
           gdt_key = `${serial_number || 'unknown'}/gdt-${Date.now()}-${file.name}`
 
           // Upload to Storage bucket "gdt-images"
           const { data: uploadData, error: uploadError } = await db.storage
-            .from('gdt-images')   // bucket name
+            .from('gdt-images')
             .upload(gdt_key, file)
 
           if (uploadError) {
@@ -296,25 +294,33 @@
             .getPublicUrl(gdt_key)
 
           gdt_url = publicData.publicUrl
+
+          // Show in UI
+          if (gdtKeyEl) gdtKeyEl.value = gdt_key || ''
+          if (gdtUrlEl) gdtUrlEl.value = gdt_url || ''
         } catch (err) {
           console.error(err)
           statusEl.textContent = 'Unexpected error uploading GDT image: ' + err.message
           return
         }
+      } else {
+        // No file selected: clear any previous values
+        if (gdtKeyEl) gdtKeyEl.value = ''
+        if (gdtUrlEl) gdtUrlEl.value = ''
       }
 
       // --- TEST RUN FIELDS ---
-      const test_location      = document.getElementById('test_location').value
-      const tester             = document.getElementById('tester').value.trim()
-      const firmware_version   = document.getElementById('firmware_version').value.trim()
+      const test_location        = document.getElementById('test_location').value
+      const tester               = document.getElementById('tester').value.trim()
+      const firmware_version     = document.getElementById('firmware_version').value.trim()
       const test_fixture_version = document.getElementById('test_fixture_version').value.trim()
-      const overall_result     = document.getElementById('overall_result').value
-      const comments           = document.getElementById('comments').value.trim()
+      const overall_result       = document.getElementById('overall_result').value
+      const comments             = document.getElementById('comments').value.trim()
 
       // --- UNPOWERED FIELDS ---
-      const meter_make         = document.getElementById('meter_make').value.trim()
-      const meter_model        = document.getElementById('meter_model').value.trim()
-      const meter_sn           = document.getElementById('meter_sn').value.trim()
+      const meter_make   = document.getElementById('meter_make').value.trim()
+      const meter_model  = document.getElementById('meter_model').value.trim()
+      const meter_sn     = document.getElementById('meter_sn').value.trim()
 
       const res_tp102_tp101_vin         = document.getElementById('res_tp102_tp101_vin').value.trim()
       const res_tp103_tp101_5v          = document.getElementById('res_tp103_tp101_5v').value.trim()
@@ -340,24 +346,21 @@
       const powered_notes         = document.getElementById('powered_notes').value.trim()
 
       try {
-        // 1) UPSERT BOARD BY SERIAL NUMBER
+        // 1) UPSERT BOARD
         const { data: board, error: boardError } = await db
           .from('boards')
-          .upsert(
-            {
-              serial_number,
-              hardware_rev,
-              pcb_rev,
-              batch,
-              country,
-              lab,
-              date_assembled,
-              assembled_by,
-              gdt_key,
-              gdt_url
-            },
-            { onConflict: 'serial_number' }
-          )
+          .upsert({
+            serial_number,
+            hardware_rev,
+            pcb_rev,
+            batch,
+            country,
+            lab,
+            date_assembled,
+            assembled_by,
+            gdt_key,
+            gdt_url
+          })
           .select()
           .single()
 
@@ -441,9 +444,8 @@
 
         statusEl.textContent = '✅ All data saved!'
         form.reset()
-         
-        const gdtKeyEl = document.getElementById('gdt_key_display')
-        const gdtUrlEl = document.getElementById('gdt_url_display')
+
+        // Clear GDT display fields after reset
         if (gdtKeyEl) gdtKeyEl.value = ''
         if (gdtUrlEl) gdtUrlEl.value = ''
 

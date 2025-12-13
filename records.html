@@ -2,10 +2,9 @@
 <html>
 <head>
   <meta charset="UTF-8">
-
+  <title>Krake – Inventory</title>
   <link rel="stylesheet" href="style.css">
   <style>
-    /* Table styling layered on top of style.css */
     .records-container {
       max-width: 960px;
       margin: 0 auto 2rem;
@@ -88,12 +87,6 @@
       border: 1px solid #f3c580;
     }
 
-    .record-id {
-      font-family: monospace;
-      font-size: 0.8rem;
-      color: #555b7a;
-    }
-
     @media (max-width: 700px) {
       .records-container {
         padding: 1.25rem 1.1rem;
@@ -111,20 +104,17 @@
   </style>
 </head>
 <body>
-  <!-- <h1>Krake Factory Records</h1> -->
- <p style="text-align:center; margin-top:-0.3rem; margin-bottom:1rem;">
-<nav class="top-nav">
-  <a href="factory-form.html" class="nav-btn">Krake Testing Register</a>
-  <a href="records.html" class="nav-btn active" aria-current="page">Inventory</a>
-  <a href="board.html" class="nav-btn">Board Record</a>
-  <!-- <a href="all-tables.html" class="nav-btn">Data Base</a> -->
-</nav>
+  <nav class="top-nav">
+    <a href="factory-form.html" class="nav-btn">Krake Testing Register</a>
+    <a href="records.html" class="nav-btn active" aria-current="page">Inventory</a>
+    <a href="board.html" class="nav-btn">Board Record</a>
+  </nav>
 
   <div class="records-container">
     <div class="filters">
       <label>
         Serial contains:
-        <input type="text" id="filter-serial" placeholder="e.g. US0001">
+        <input type="text" id="filter-serial" placeholder="e.g. LB0001">
       </label>
 
       <label>
@@ -165,177 +155,140 @@
         </tr>
       </thead>
       <tbody id="records-body">
-        <!-- rows injected by JS -->
       </tbody>
     </table>
   </div>
 
-  <!-- Supabase JS client -->
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script>
-    // ⚠️ Same values as in your index.html form
-    const SUPABASE_URL = 'https://bkonmvhzzlbrbtnvlfcr.supabase.co'
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJrb25tdmh6emxicmJ0bnZsZmNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMyMjUxNjIsImV4cCI6MjA3ODgwMTE2Mn0.yrg1t-aHWuwVEVcUVJ4-sbz1BNSspc7c5tBSQ3APTAg'
+    const API_BASE = 'http://localhost:4000';
+    const statusEl = document.getElementById('status');
+    const tbody = document.getElementById('records-body');
 
+    const filterSerial = document.getElementById('filter-serial');
+    const filterLocation = document.getElementById('filter-location');
+    const filterResult = document.getElementById('filter-result');
+    const reloadBtn = document.getElementById('reload-btn');
 
-    const { createClient } = supabase
-    const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-
-    const statusEl = document.getElementById('status')
-    const tbody = document.getElementById('records-body')
-
-    const filterSerial = document.getElementById('filter-serial')
-    const filterLocation = document.getElementById('filter-location')
-    const filterResult = document.getElementById('filter-result')
-    const reloadBtn = document.getElementById('reload-btn')
-
-    let lastData = []
+    let lastData = [];
 
     function setStatus(message, isError = false) {
-      statusEl.textContent = message || ''
-      statusEl.className = ''
-      if (!message) return
-      statusEl.classList.add(isError ? 'error' : 'success')
+      statusEl.textContent = message || '';
+      statusEl.style.color = isError ? '#b91c1c' : '#14532d';
     }
 
     function formatDateTime(isoString) {
-      if (!isoString) return ''
-      // Basic local formatting
-      const d = new Date(isoString)
-      if (isNaN(d)) return isoString
-      return d.toLocaleString()
+      if (!isoString) return '';
+      const d = new Date(isoString);
+      if (isNaN(d)) return isoString;
+      return d.toLocaleString();
     }
 
     function renderTable() {
-      const serialFilter = filterSerial.value.trim().toLowerCase()
-      const locationFilter = filterLocation.value
-      const resultFilter = filterResult.value
+      const serialFilter = filterSerial.value.trim().toLowerCase();
+      const locationFilter = filterLocation.value;
+      const resultFilter = filterResult.value;
 
-      tbody.innerHTML = ''
+      tbody.innerHTML = '';
 
       const filtered = lastData.filter(row => {
-        const serial = row.boards?.serial_number || ''
-        const testLoc = row.test_location || ''
-        const result = row.overall_result || ''
+        const serial = (row.serial_number || '').toLowerCase();
+        const testLoc = row.test_location || '';
+        const result = row.overall_result || '';
 
-        if (serialFilter && !serial.toLowerCase().includes(serialFilter)) {
-          return false
-        }
-        if (locationFilter !== 'ALL' && testLoc !== locationFilter) {
-          return false
-        }
-        if (resultFilter !== 'ALL' && result !== resultFilter) {
-          return false
-        }
-        return true
-      })
+        if (serialFilter && !serial.includes(serialFilter)) return false;
+        if (locationFilter !== 'ALL' && testLoc !== locationFilter) return false;
+        if (resultFilter !== 'ALL' && result !== resultFilter) return false;
 
-      if (filtered.length === 0) {
-        const tr = document.createElement('tr')
-        const td = document.createElement('td')
-        td.colSpan = 7
-        td.textContent = 'No records match the current filters.'
-        tr.appendChild(td)
-        tbody.appendChild(tr)
-        return
+        return true;
+      });
+
+      if (!filtered.length) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 7;
+        td.textContent = 'No records match the current filters.';
+        td.style.textAlign = 'center';
+        td.style.color = '#6b7280';
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        return;
       }
 
       for (const row of filtered) {
-        const tr = document.createElement('tr')
+        const tr = document.createElement('tr');
 
-        const serial = row.boards?.serial_number || '(unknown)'
-        const country = row.boards?.country || ''
-        const lab = row.boards?.lab || ''
+        const serial = row.serial_number || '(unknown)';
+        const country = row.country || '';
+        const lab = row.lab || '';
+        const boardLoc = [country, lab].filter(Boolean).join(' / ');
 
-        const boardLoc = [country, lab].filter(Boolean).join(' / ')
+        const tdSerial = document.createElement('td');
+        tdSerial.textContent = serial;
 
-        const tdSerial = document.createElement('td')
-        tdSerial.textContent = serial
+        const tdBoardLoc = document.createElement('td');
+        tdBoardLoc.textContent = boardLoc || '—';
 
-        const tdBoardLoc = document.createElement('td')
-        tdBoardLoc.textContent = boardLoc || '—'
+        const tdDate = document.createElement('td');
+        tdDate.textContent = formatDateTime(row.test_datetime);
 
-        const tdDate = document.createElement('td')
-        tdDate.textContent = formatDateTime(row.test_datetime)
+        const tdTestLoc = document.createElement('td');
+        tdTestLoc.textContent = row.test_location || '—';
 
-        const tdTestLoc = document.createElement('td')
-        tdTestLoc.textContent = row.test_location || '—'
+        const tdTester = document.createElement('td');
+        tdTester.textContent = row.tester || '—';
 
-        const tdTester = document.createElement('td')
-        tdTester.textContent = row.tester || '—'
+        const tdFirmware = document.createElement('td');
+        tdFirmware.textContent = row.firmware_version || '—';
 
-        const tdFirmware = document.createElement('td')
-        tdFirmware.textContent = row.firmware_version || '—'
+        const tdResult = document.createElement('td');
+        const span = document.createElement('span');
+        const res = (row.overall_result || '').toUpperCase();
+        span.textContent = res || '—';
+        span.classList.add('badge');
+        if (res === 'PASS') span.classList.add('badge-pass');
+        else if (res === 'FAIL') span.classList.add('badge-fail');
+        else if (res === 'REWORK') span.classList.add('badge-rework');
+        tdResult.appendChild(span);
 
-        const tdResult = document.createElement('td')
-        const span = document.createElement('span')
-        const res = (row.overall_result || '').toUpperCase()
-        span.textContent = res || '—'
-        span.classList.add('badge')
-        if (res === 'PASS') span.classList.add('badge-pass')
-        else if (res === 'FAIL') span.classList.add('badge-fail')
-        else if (res === 'REWORK') span.classList.add('badge-rework')
-        tdResult.appendChild(span)
+        tr.appendChild(tdSerial);
+        tr.appendChild(tdBoardLoc);
+        tr.appendChild(tdDate);
+        tr.appendChild(tdTestLoc);
+        tr.appendChild(tdTester);
+        tr.appendChild(tdFirmware);
+        tr.appendChild(tdResult);
 
-        tr.appendChild(tdSerial)
-        tr.appendChild(tdBoardLoc)
-        tr.appendChild(tdDate)
-        tr.appendChild(tdTestLoc)
-        tr.appendChild(tdTester)
-        tr.appendChild(tdFirmware)
-        tr.appendChild(tdResult)
-
-        tbody.appendChild(tr)
+        tbody.appendChild(tr);
       }
     }
 
     async function loadRecords() {
-      setStatus('Loading records...')
-      tbody.innerHTML = ''
+      setStatus('Loading records...');
+      tbody.innerHTML = '';
 
       try {
-        // Fetch latest 200 test runs with related boards info
-        const { data, error } = await db
-          .from('test_runs')
-          .select(`
-            testrun_id,
-            test_datetime,
-            test_location,
-            tester,
-            firmware_version,
-            overall_result,
-            boards (
-              serial_number,
-              country,
-              lab
-            )
-          `)
-          .order('test_datetime', { ascending: false })
-          .limit(200)
-
-        if (error) {
-          console.error(error)
-          setStatus('Error loading records: ' + error.message, true)
-          return
+        const res = await fetch(`${API_BASE}/api/test-runs`);
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`HTTP ${res.status}: ${text}`);
         }
-
-        lastData = data || []
-        setStatus(`Loaded ${lastData.length} Krake Registeries.`)
-        renderTable()
+        const data = await res.json();
+        lastData = Array.isArray(data) ? data : [];
+        setStatus(`Loaded ${lastData.length} test runs.`);
+        renderTable();
       } catch (err) {
-        console.error(err)
-        setStatus('Unexpected error: ' + err.message, true)
+        console.error(err);
+        setStatus('Error loading records: ' + err.message, true);
       }
     }
 
-    // Reload button & filter changes
-    reloadBtn.addEventListener('click', loadRecords)
-    filterSerial.addEventListener('input', renderTable)
-    filterLocation.addEventListener('change', renderTable)
-    filterResult.addEventListener('change', renderTable)
+    reloadBtn.addEventListener('click', loadRecords);
+    filterSerial.addEventListener('input', renderTable);
+    filterLocation.addEventListener('change', renderTable);
+    filterResult.addEventListener('change', renderTable);
 
     // Initial load
-    loadRecords()
+    loadRecords();
   </script>
 </body>
 </html>

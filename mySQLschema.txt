@@ -1,0 +1,82 @@
+CREATE DATABASE IF NOT EXISTS krake_factory
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_unicode_ci;
+
+USE krake_factory;
+
+
+CREATE TABLE boards (
+  board_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  serial_number VARCHAR(64) NOT NULL UNIQUE,
+  hardware_rev VARCHAR(64),
+  pcb_rev VARCHAR(64),
+  batch VARCHAR(64),
+  date_assembled DATE,
+  assembled_by VARCHAR(128),
+  country VARCHAR(64),
+  lab VARCHAR(128),
+  status VARCHAR(32),
+  gdt_key VARCHAR(128),
+  gdt_url TEXT,
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE test_runs (
+  testrun_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  board_id BIGINT NOT NULL,
+  test_datetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  test_location VARCHAR(64),
+  tester VARCHAR(128) NOT NULL,
+  firmware_version VARCHAR(64),
+  test_fixture_version VARCHAR(64),
+  overall_result VARCHAR(16),
+  comments TEXT,
+  FOREIGN KEY (board_id) REFERENCES boards(board_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE unpowered_results (
+  unpowered_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  testrun_id BIGINT NOT NULL,
+  meter_make VARCHAR(64),
+  meter_model VARCHAR(64),
+  meter_sn VARCHAR(64),
+  res_tp102_tp101_vin VARCHAR(64),
+  res_tp103_tp101_5v VARCHAR(64),
+  res_tp201_tp101_vbus VARCHAR(64),
+  res_tp202_tp101_v3 VARCHAR(64),
+  res_j103pin2_tp101_ctrl_vcc VARCHAR(64),
+  pass_fail VARCHAR(16),
+  notes TEXT,
+  FOREIGN KEY (testrun_id) REFERENCES test_runs(testrun_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE powered_results (
+  powered_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  testrun_id BIGINT NOT NULL,
+  supply_current_ma DECIMAL(10,3),
+  vin_tp102_v DECIMAL(10,3),
+  v5_tp103_v DECIMAL(10,3),
+  v5_esp32_u103_v DECIMAL(10,3),
+  v3p3_tab_u103_v DECIMAL(10,3),
+  v3_tp202_u501_v DECIMAL(10,3),
+  v3v3_ctrl_d103k_v DECIMAL(10,3),
+  vcclcd_tp401_v DECIMAL(10,3),
+  v5_dfp_c505_v DECIMAL(10,3),
+  v_charge_pump_plus_v DECIMAL(10,3),
+  v_charge_pump_minus_v DECIMAL(10,3),
+  pass_fail VARCHAR(16),
+  notes TEXT,
+  FOREIGN KEY (testrun_id) REFERENCES test_runs(testrun_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE test_run_photos (
+  photo_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  testrun_id BIGINT NOT NULL,
+  filename VARCHAR(255),
+  mime_type VARCHAR(100),
+  bytes LONGBLOB NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (testrun_id) REFERENCES test_runs(testrun_id) ON DELETE CASCADE
+) ENGINE=InnoDB;

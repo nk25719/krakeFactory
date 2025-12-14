@@ -12,15 +12,16 @@ app.use(express.static('public'));
 
 // ---------- MySQL CONFIG ----------
 const pool = mysql.createPool({
-  host: '127.0.0.1',
+  host: process.env.DB_HOST || '127.0.0.1',
   port: 3306,
-  user: 'root',                 // change if needed
-  password: 'N@jh@M..2429', // TODO: put your real password
-  database: 'krake_factory',    // change if your DB name is different
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASS || 'N@jh@M..2429',  // keep, but override in prod
+  database: process.env.DB_NAME || 'krake_factory',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
 });
+
 
 async function getConn() {
   return pool.getConnection();

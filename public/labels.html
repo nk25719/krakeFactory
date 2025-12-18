@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Krake – QR Label from Image</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="top-nav">
+    <a href="factory-form.html" class="nav-btn">Krake Testing Register</a>
+    <a href="records.html" class="nav-btn">Inventory</a>
+    <a href="board.html" class="nav-btn">Board Record</a>
+    <a href="labels.html" class="nav-btn active" aria-current="page">QR Labels</a>
+  </nav>
+
+  <main class="page-shell">
+    <section class="page-header">
+      <h1>QR Label from Existing Image</h1>
+      <p class="page-subtitle">
+        Upload a QR code image, choose label size, and download a printable PDF with a serial caption.
+      </p>
+    </section>
+
+    <section class="board-container">
+      <form id="label-form" class="board-form" enctype="multipart/form-data">
+        <fieldset>
+          <legend>Label Settings</legend>
+
+          <label>
+            QR Image
+            <input type="file" id="qr_image" name="qr_image" accept="image/*" required>
+          </label>
+
+          <label>
+            Serial (also used in filename)
+            <input type="text" id="serial" name="serial" required placeholder="e.g. KRK-LB0001">
+          </label>
+
+          <label>
+            Caption (optional)
+            <input type="text" id="caption" name="caption" placeholder="Defaults to 'Serial: &lt;serial&gt;'">
+          </label>
+
+          <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+            <label style="flex:1;">
+              Width (mm)
+              <input type="number" id="width_mm" name="width_mm" min="10" max="200" value="50">
+            </label>
+            <label style="flex:1;">
+              Height (mm)
+              <input type="number" id="height_mm" name="height_mm" min="10" max="200" value="30">
+            </label>
+          </div>
+        </fieldset>
+
+        <div style="margin-top:1rem; display:flex; gap:0.75rem; align-items:center;">
+          <button type="submit">Generate &amp; Download Label PDF</button>
+          <span id="status" style="font-size:0.9rem;"></span>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <script>
+    const form = document.getElementById('label-form');
+    const statusEl = document.getElementById('status');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      statusEl.textContent = 'Uploading and generating label...';
+
+      const fileInput = document.getElementById('qr_image');
+      const serialEl  = document.getElementById('serial');
+      const captionEl = document.getElementById('caption');
+      const widthEl   = document.getElementById('width_mm');
+      const heightEl  = document.getElementById('height_mm');
+
+      if (!fileInput.files || fileInput.files.length === 0) {
+        statusEl.textContent = 'Please choose a QR image.';
+        return;
+      }
+      if (!serialEl.value.trim()) {
+        statusEl.textContent = 'Serial is required.';
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('qr_image', fileInput.files[0]);
+      formData.append('serial', serialEl.value.trim());
+      formData.append('caption', captionEl.value.trim());
+      formData.append('width_mm', widthEl.value);
+      formData.append('height_mm', heightEl.value);
+
+      try {
+        const res = await fetch('/api/labels/qr-image-pdf', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`Server error (${res.status}): ${text}`);
+        }
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `label-${serialEl.value.trim()}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+
+        statusEl.textContent = 'Label generated and downloaded.';
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = 'Error: ' + err.message;
+      }
+    });
+  </script>
+</body>
+</html>

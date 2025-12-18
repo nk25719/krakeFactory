@@ -4,6 +4,11 @@ const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2/promise');
 
+const multer = require('multer');
+const PDFDocument = require('pdfkit');
+const upload = multer({ storage: multer.memoryStorage() });
+ 
+// ---------- EXPRESS SETUP ----------
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -278,8 +283,83 @@ app.get('/api/board/:serial', async (req, res) => {
   }
 });
 
+// ---------- QR IMAGE → PDF LABEL ----------
+// Upload an existing QR image and generate a PDF label with specific dimensions and caption.
+app.post('/api/labels/qr-image-pdf', upload.single('qr_image'), async (req, res) => {
+  try {
+    const file = req.file;
+    const { serial, caption, width_mm, height_mm } = req.body || {};
+
+    if (!file) {
+      return res.status(400).json({ error: 'qr_image file is required' });
+    }
+    if (!serial || !serial.trim()) {
+      return res.status(400).json({ error: 'serial is required' });
+    }
+
+    // Default size if not provided
+    const widthMm  = Number(width_mm)  || 50; // 50 mm wide
+    const heightMm = Number(height_mm) || 30; // 30 mm tall
+
+    // mm → points (PDF units)
+    const mmToPt = (mm) => (mm * 72) / 25.4;
+    const widthPt  = mmToPt(widthMm);
+    const heightPt = mmToPt(heightMm);
+
+    // Prepare PDF headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="label-${encodeURIComponent(serial.trim())}.pdf"`
+    );
+
+    // Create PDF document
+    const doc = new PDFDocument({
+      size: [widthPt, heightPt],
+      margin: 4
+    });
+
+    doc.pipe(res);
+
+    const page = doc.page;
+    const labelWidth  = page.width  - page.margins.left - page.margins.right;
+    const labelHeight = page.height - page.margins.top  - page.margins.bottom;
+
+    // Use upper ~70% of label for QR, lower for caption
+    const qrHeightMax = labelHeight * 0.7;
+    const qrWidthMax  = labelWidth;
+    const qrSize      = Math.min(qrWidthMax, qrHeightMax);
+
+    const qrX = page.margins.left + (labelWidth - qrSize) / 2;
+    const qrY = page.margins.top;
+
+    // Draw the uploaded QR image (from memory buffer)
+    doc.image(file.buffer, qrX, qrY, { width: qrSize, height: qrSize });
+
+    // Caption area
+    const text = (caption && caption.trim()) || `Serial: ${serial.trim()}`;
+    const captionY = qrY + qrSize + 4;
+
+    doc.fontSize(8);
+    doc.text(text, page.margins.left, captionY, {
+      width: labelWidth,
+      align: 'center'
+    });
+
+    doc.end();
+  } catch (err) {
+    console.error('POST /api/labels/qr-image-pdf error:', err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+});
+
 // ---------- START SERVER ----------
 const PORT = 4000;
 app.listen(PORT, () => {
   console.log(`API server listening on http://localhost:${PORT}`);
 });
+
+
+ 

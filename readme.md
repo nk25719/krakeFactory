@@ -312,3 +312,10 @@ Restart / debug the service
 Safely update code and DB.
 
 ::contentReference[oaicite:0]{index=0}
+
+
+---------------
+
+TO RESTORE DATABASE 
+
+sudo mysql < ~/db_backups/krake_factory_2025-12-23.sql

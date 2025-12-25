@@ -112,6 +112,9 @@
         </p>
       </div>
       <button id="reload-btn" type="button">Reload</button>
+      <button id="reloadBtn" class="btn-primary">Reload</button>
+      <button id="exportCsvBtn" class="btn-secondary">Export to Excel (CSV)</button>
+
     </header>
 
     <section class="filters">
@@ -270,6 +273,12 @@
 
     // Initial load
     loadRecords();
+
+    document.getElementById('exportCsvBtn').addEventListener('click', () => {
+    // Trigger file download from the CSV endpoint
+    window.location.href = `${API_BASE}/api/test-runs.csv`;
+  });
+
   </script>
 </body>
 </html>

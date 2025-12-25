@@ -16,16 +16,28 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // ---------- MySQL CONFIG ----------
+// const pool = mysql.createPool({
+//   host: process.env.DB_HOST || '127.0.0.1',
+//   port: 3306,
+//   user: process.env.DB_USER || 'root',
+//   password: process.env.DB_PASS || 'N@jh@M..2429',  // keep, but override in prod
+//   database: process.env.DB_NAME || 'krake_factory',
+//   waitForConnections: true,
+//   connectionLimit: 10,
+//   queueLimit: 0
+// });
+
 const pool = mysql.createPool({
   host: process.env.DB_HOST || '127.0.0.1',
   port: 3306,
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASS || 'N@jh@M..2429',  // keep, but override in prod
+  user: process.env.DB_USER,          // no hard-coded default
+  password: process.env.DB_PASS,      // no hard-coded default
   database: process.env.DB_NAME || 'krake_factory',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
 });
+
 
 
 async function getConn() {
@@ -229,6 +241,72 @@ app.get('/api/test-runs', async (req, res) => {
   }
 });
 
+// GET /api/test-runs.csv – export inventory as CSV (Excel-friendly)
+app.get('/api/test-runs.csv', async (req, res) => {
+  let conn;
+  try {
+    conn = await getConn();
+    const [rows] = await conn.query(
+      `SELECT
+         b.serial_number,
+         b.country,
+         b.lab,
+         tr.test_datetime,
+         tr.test_location,
+         tr.tester,
+         tr.firmware_version,
+         tr.overall_result
+       FROM test_runs tr
+       JOIN boards b ON tr.board_id = b.board_id
+       ORDER BY tr.test_datetime DESC`
+    );
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="krake_inventory_export.csv"'
+    );
+
+    const header = [
+      'serial_number',
+      'country',
+      'lab',
+      'test_datetime',
+      'test_location',
+      'tester',
+      'firmware_version',
+      'overall_result'
+    ].join(',') + '\n';
+
+    const escapeCsv = (value) => {
+      if (value === null || value === undefined) return '';
+      const s = String(value).replace(/"/g, '""');
+      // Wrap in quotes if contains comma, quote, or newline
+      return /[",\n]/.test(s) ? `"${s}"` : s;
+    };
+
+    const lines = rows.map(row =>
+      [
+        escapeCsv(row.serial_number),
+        escapeCsv(row.country),
+        escapeCsv(row.lab),
+        escapeCsv(row.test_datetime),
+        escapeCsv(row.test_location),
+        escapeCsv(row.tester),
+        escapeCsv(row.firmware_version),
+        escapeCsv(row.overall_result)
+      ].join(',')
+    );
+
+    res.send(header + lines.join('\n'));
+  } catch (err) {
+    console.error('GET /api/test-runs.csv error:', err);
+    res.status(500).send('Error exporting CSV');
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
 // GET /api/board/:serial – board + runs + measurements
 app.get('/api/board/:serial', async (req, res) => {
   const serial = (req.params.serial || '').trim();
@@ -356,10 +434,11 @@ app.post('/api/labels/qr-image-pdf', upload.single('qr_image'), async (req, res)
 });
 
 // ---------- START SERVER ----------
+// const PORT = 4000;
+// app.listen(PORT, () => {
+//   console.log(`API server listening on http://0.0.0.0:${PORT}`);
+// });
 const PORT = 4000;
-app.listen(PORT, () => {
-  console.log(`API server listening on http://localhost:${PORT}`);
+app.listen(PORT, '127.0.0.1', () => {
+  console.log(`API server listening on http://127.0.0.1:${PORT}`);
 });
-
-
- 
